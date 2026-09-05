@@ -1,0 +1,1 @@
+Move-Item -Path sih-environmental-monitoring\* -Destination . -Force; Move-Item -Path sih-environmental-monitoring\.* -Destination . -Force; Remove-Item -Path sih-environmental-monitoring -Recurse -Force

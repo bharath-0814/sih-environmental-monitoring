@@ -4,27 +4,50 @@ import { mockNodes, mockReadings, mockAlerts, mockRiskAssessments, mockEvents, g
 // Toggle this to use the real backend once Turso is set up
 const USE_MOCK_DATA = process.env.NEXT_PUBLIC_DATA_MODE === 'mock';
 
-export async function getNodes(): Promise<SensorNode[]> {
+export interface LatestTelemetryState {
+  nodes: SensorNode[];
+  readings: Record<string, SensorReading>;
+}
+
+export async function getLatestTelemetry(): Promise<LatestTelemetryState> {
   if (USE_MOCK_DATA) {
-    return mockNodes;
+    return {
+      nodes: mockNodes,
+      readings: mockReadings,
+    };
   }
   const res = await fetch('/api/sensors/latest');
-  if (!res.ok) throw new Error('Failed to fetch nodes');
-  const data = await res.json();
-  return data.data;
+  if (!res.ok) throw new Error('Failed to fetch latest telemetry');
+  const json = await res.json();
+  const rawData: any[] = json.data || [];
+
+  const nodes: SensorNode[] = rawData.map((r: any) => ({
+    id: r.id,
+    node_id: r.node_id,
+    name: r.name,
+    location_name: r.location_name,
+    latitude: r.latitude,
+    longitude: r.longitude,
+    status: r.status,
+    last_seen: r.last_seen,
+    created_at: r.created_at,
+  }));
+
+  const readings: Record<string, SensorReading> = {};
+  rawData.forEach((r: any) => {
+    readings[r.node_id] = r;
+  });
+
+  return { nodes, readings };
+}
+
+export async function getNodes(): Promise<SensorNode[]> {
+  const { nodes } = await getLatestTelemetry();
+  return nodes;
 }
 
 export async function getLatestReadings(): Promise<Record<string, SensorReading>> {
-  if (USE_MOCK_DATA) {
-    return mockReadings;
-  }
-  const res = await fetch('/api/sensors/latest');
-  if (!res.ok) throw new Error('Failed to fetch latest readings');
-  const json = await res.json();
-  const readings: Record<string, SensorReading> = {};
-  json.data.forEach((r: any) => {
-    readings[r.node_id] = r;
-  });
+  const { readings } = await getLatestTelemetry();
   return readings;
 }
 

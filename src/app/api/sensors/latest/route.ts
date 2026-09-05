@@ -7,7 +7,7 @@ export async function GET() {
     // Get the latest reading for each node
     // Using a simple subquery or group by since we want latest per node
     const result = await db.execute(`
-      SELECT r.*, n.name, n.location_name, n.latitude, n.longitude, n.status 
+      SELECT r.*, n.name, n.location_name, n.latitude, n.longitude, n.status, n.last_seen 
       FROM sensor_readings r
       JOIN sensor_nodes n ON r.node_id = n.node_id
       WHERE r.timestamp = (

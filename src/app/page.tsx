@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getNodes, getLatestReadings, getAlerts, getRiskAssessments, getEvents, resolveAlert } from '@/services/api';
+import { getLatestTelemetry, getAlerts, getRiskAssessments, getEvents, resolveAlert } from '@/services/api';
 import { SensorNode, SensorReading, Alert, RiskAssessment, OperationalEvent } from '@/types';
 import { 
   Activity, 
@@ -40,15 +40,14 @@ export default function CommandCenter() {
 
   const fetchData = async () => {
     try {
-      const [fetchedNodes, fetchedReadings, fetchedAlerts, fetchedRisk, fetchedEvents] = await Promise.all([
-        getNodes(),
-        getLatestReadings(),
+      const [telemetry, fetchedAlerts, fetchedRisk, fetchedEvents] = await Promise.all([
+        getLatestTelemetry(),
         getAlerts(),
         getRiskAssessments(),
         getEvents(30).catch(() => [])
       ]);
-      setNodes(fetchedNodes);
-      setReadings(fetchedReadings);
+      setNodes(telemetry.nodes);
+      setReadings(telemetry.readings);
       setAlerts(fetchedAlerts);
       setRiskMap(fetchedRisk);
       setEvents(fetchedEvents);

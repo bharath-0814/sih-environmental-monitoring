@@ -48,6 +48,19 @@ export async function initDb() {
       resolved BOOLEAN DEFAULT 0,
       FOREIGN KEY(node_id) REFERENCES sensor_nodes(node_id)
     );
+
+    CREATE TABLE IF NOT EXISTS events (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      node_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      severity TEXT NOT NULL,
+      title TEXT NOT NULL,
+      description TEXT NOT NULL,
+      timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+      metadata TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY(node_id) REFERENCES sensor_nodes(node_id)
+    );
     
     -- Insert a demo node if none exists
     INSERT OR IGNORE INTO sensor_nodes (node_id, name, location_name, latitude, longitude, status) 

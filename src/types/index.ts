@@ -175,3 +175,31 @@ export interface RiskAssessment {
   features: DerivedFeatures;
   anomaly?: AnomalyReport;
 }
+
+// ==========================================
+// OPERATIONAL EVENTS & ANALYTICS CONTRACTS
+// ==========================================
+
+export type EventType = 
+  | 'READING_RECEIVED'
+  | 'WATER_TREND_CHANGE'
+  | 'RAIN_ACTIVITY_CHANGE'
+  | 'DATA_QUALITY'
+  | 'RISK_STATE_CHANGE'
+  | 'NODE_BECAME_STALE'
+  | 'NODE_RECOVERED';
+
+export interface OperationalEvent {
+  id: number;
+  node_id: string;
+  event_type: EventType;
+  severity: AlertSeverity;
+  title: string;
+  description: string;
+  timestamp: string;
+  metadata?: string | null;
+  created_at: string;
+}
+
+export type TimeRangeOption = '15m' | '1h' | '6h' | '24h';
+

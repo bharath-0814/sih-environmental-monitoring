@@ -274,3 +274,76 @@ export const mockRiskAssessments: Record<string, RiskAssessment> = {
     }
   }
 };
+
+import { OperationalEvent } from '@/types';
+
+export const mockEvents: OperationalEvent[] = [
+  {
+    id: 1,
+    node_id: 'node-01',
+    event_type: 'WATER_TREND_CHANGE',
+    severity: 'info',
+    title: 'Water Distance Trend Stable',
+    description: 'Minor water distance fluctuation within ±0.2 cm/min normal variance.',
+    timestamp: new Date(Date.now() - 120000).toISOString(),
+    created_at: new Date(Date.now() - 120000).toISOString()
+  },
+  {
+    id: 2,
+    node_id: 'node-03',
+    event_type: 'RAIN_ACTIVITY_CHANGE',
+    severity: 'warning',
+    title: 'High Rain Gauge Activity Active',
+    description: 'Rain gauge tipping rate observed at 40 tips/min during active storm event.',
+    timestamp: new Date(Date.now() - 300000).toISOString(),
+    created_at: new Date(Date.now() - 300000).toISOString()
+  },
+  {
+    id: 3,
+    node_id: 'node-02',
+    event_type: 'NODE_BECAME_STALE',
+    severity: 'warning',
+    title: 'Node Telemetry Stale',
+    description: 'No telemetry packets received for over 3600 seconds.',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    created_at: new Date(Date.now() - 3600000).toISOString()
+  },
+  {
+    id: 4,
+    node_id: 'node-01',
+    event_type: 'READING_RECEIVED',
+    severity: 'info',
+    title: 'Telemetry Packet Ingested',
+    description: 'Standard 6-channel sensor packet processed and verified.',
+    timestamp: new Date(Date.now() - 10000).toISOString(),
+    created_at: new Date(Date.now() - 10000).toISOString()
+  }
+];
+
+export function getMockTimeSeriesReadings(nodeId: string, count: number = 15): SensorReading[] {
+  const base = mockReadings[nodeId] || mockReadings['node-01'];
+  const results: SensorReading[] = [];
+  const now = Date.now();
+  const stepMs = 60000; // 1 min apart
+
+  for (let i = count - 1; i >= 0; i--) {
+    const t = new Date(now - i * stepMs).toISOString();
+    // deterministic small drift for realistic charts
+    const offset = Math.sin(i / 2) * 0.5;
+    results.push({
+      id: 1000 + i,
+      node_id: nodeId,
+      timestamp: t,
+      water_distance_cm: Number((base.water_distance_cm + offset).toFixed(2)),
+      rain_sensor_raw: base.rain_sensor_raw,
+      rain_gauge_tips: Math.max(0, base.rain_gauge_tips + (count - 1 - i)),
+      soil_moisture_raw: base.soil_moisture_raw,
+      temperature_c: Number((base.temperature_c + (i % 3) * 0.1).toFixed(2)),
+      humidity_pct: Number((base.humidity_pct + (i % 2) * 0.5).toFixed(2)),
+      created_at: t
+    });
+  }
+
+  return results;
+}
+

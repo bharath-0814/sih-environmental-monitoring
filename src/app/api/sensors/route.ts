@@ -90,6 +90,36 @@ export async function POST(request: Request) {
     // 4. REAL BACKEND ALERT ENGINE
     await evaluateAndTriggerAlerts(nodeId, canonical as any);
 
+    // 5. OPERATIONAL EVENT GENERATION
+    try {
+      const { assessNodeRisk } = await import('@/lib/risk-engine');
+      const { evaluateOperationalEvents, recordOperationalEvent } = await import('@/lib/events');
+      
+      const assessment = await assessNodeRisk(nodeId);
+      const latestReading = {
+        id: 0,
+        node_id: nodeId,
+        timestamp: new Date().toISOString(),
+        water_distance_cm: canonical.waterDistanceCm,
+        rain_sensor_raw: canonical.rainSensorRaw,
+        rain_gauge_tips: canonical.rainGaugeTips,
+        soil_moisture_raw: canonical.soilMoistureRaw,
+        temperature_c: canonical.temperatureC,
+        humidity_pct: canonical.humidityPct,
+        created_at: new Date().toISOString(),
+      };
+
+      await evaluateOperationalEvents(
+        nodeId,
+        latestReading,
+        assessment.features,
+        assessment.dataQuality,
+        assessment
+      );
+    } catch (eventErr) {
+      console.error('Error generating operational events:', eventErr);
+    }
+
     return NextResponse.json({ success: true, message: 'Reading recorded' });
   } catch (error) {
     console.error('Error in POST /api/sensors:', error);

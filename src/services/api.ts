@@ -1,5 +1,5 @@
-import { SensorNode, SensorReading, Alert, RiskAssessment } from '@/types';
-import { mockNodes, mockReadings, mockAlerts, mockRiskAssessments } from '@/lib/mock-data';
+import { SensorNode, SensorReading, Alert, RiskAssessment, OperationalEvent, TimeRangeOption } from '@/types';
+import { mockNodes, mockReadings, mockAlerts, mockRiskAssessments, mockEvents, getMockTimeSeriesReadings } from '@/lib/mock-data';
 
 // Toggle this to use the real backend once Turso is set up
 const USE_MOCK_DATA = process.env.NEXT_PUBLIC_DATA_MODE === 'mock';
@@ -11,7 +11,6 @@ export async function getNodes(): Promise<SensorNode[]> {
   const res = await fetch('/api/sensors/latest');
   if (!res.ok) throw new Error('Failed to fetch nodes');
   const data = await res.json();
-  // Transform response to match SensorNode array
   return data.data;
 }
 
@@ -29,14 +28,16 @@ export async function getLatestReadings(): Promise<Record<string, SensorReading>
   return readings;
 }
 
-export async function getNodeDetails(nodeId: string): Promise<{ node: SensorNode, readings: SensorReading[] }> {
+export async function getNodeDetails(nodeId: string, range?: TimeRangeOption): Promise<{ node: SensorNode, readings: SensorReading[] }> {
   if (USE_MOCK_DATA) {
     const node = mockNodes.find(n => n.node_id === nodeId);
     if (!node) throw new Error('Node not found');
-    const reading = mockReadings[nodeId];
-    return { node, readings: reading ? [reading] : [] };
+    const count = range === '15m' ? 15 : range === '1h' ? 30 : range === '6h' ? 60 : 100;
+    const readings = getMockTimeSeriesReadings(nodeId, count);
+    return { node, readings };
   }
-  const res = await fetch(`/api/sensors/${nodeId}?limit=20`);
+  const queryParam = range ? `range=${range}` : 'limit=50';
+  const res = await fetch(`/api/sensors/${nodeId}?${queryParam}`);
   if (!res.ok) throw new Error('Failed to fetch node details');
   return res.json();
 }
@@ -84,4 +85,24 @@ export async function getNodeRiskAssessment(nodeId: string): Promise<RiskAssessm
   if (!res.ok) throw new Error('Failed to fetch node risk assessment');
   const json = await res.json();
   return json.assessment;
+}
+
+export async function getEvents(limit: number = 20): Promise<OperationalEvent[]> {
+  if (USE_MOCK_DATA) {
+    return mockEvents.slice(0, limit);
+  }
+  const res = await fetch(`/api/events?limit=${limit}`);
+  if (!res.ok) throw new Error('Failed to fetch operational events');
+  const json = await res.json();
+  return json.data;
+}
+
+export async function getNodeEvents(nodeId: string, limit: number = 20): Promise<OperationalEvent[]> {
+  if (USE_MOCK_DATA) {
+    return mockEvents.filter(e => e.node_id === nodeId).slice(0, limit);
+  }
+  const res = await fetch(`/api/events/${nodeId}?limit=${limit}`);
+  if (!res.ok) throw new Error('Failed to fetch node operational events');
+  const json = await res.json();
+  return json.data;
 }

@@ -32,15 +32,15 @@ export const rules: AlertRule[] = [
 export async function evaluateAndTriggerAlerts(nodeId: string, data: CanonicalSensorData) {
   for (const rule of rules) {
     if (rule.evaluate(data)) {
-      // Deduplication: Check if there's already an unresolved alert of this type for this node
+      // Deduplication: Check if there's already an unresolved / open alert of this type for this node
       const existing = await db.execute({
-        sql: 'SELECT id FROM alerts WHERE node_id = ? AND title = ? AND resolved = 0 LIMIT 1',
+        sql: "SELECT id FROM alerts WHERE node_id = ? AND title = ? AND (resolved = 0 OR status = 'OPEN') LIMIT 1",
         args: [nodeId, rule.name]
       });
 
       if (existing.rows.length === 0) {
         await db.execute({
-          sql: 'INSERT INTO alerts (node_id, severity, title, message) VALUES (?, ?, ?, ?)',
+          sql: "INSERT INTO alerts (node_id, severity, title, message, status, resolved) VALUES (?, ?, ?, ?, 'OPEN', 0)",
           args: [nodeId, rule.severity, rule.name, rule.message(data)]
         });
       }

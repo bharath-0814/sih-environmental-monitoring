@@ -43,6 +43,7 @@ export async function initDb() {
       severity TEXT NOT NULL,
       title TEXT NOT NULL,
       message TEXT NOT NULL,
+      status TEXT DEFAULT 'OPEN',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       resolved BOOLEAN DEFAULT 0,
       FOREIGN KEY(node_id) REFERENCES sensor_nodes(node_id)
@@ -52,6 +53,13 @@ export async function initDb() {
     INSERT OR IGNORE INTO sensor_nodes (node_id, name, location_name, latitude, longitude, status) 
     VALUES ('node-01', 'Demo Node 1', 'River Station Alpha', 28.6139, 77.2090, 'active');
   `);
+
+  // Migration: Ensure status column exists if alerts table was previously created without it
+  try {
+    await db.execute(`ALTER TABLE alerts ADD COLUMN status TEXT DEFAULT 'OPEN'`);
+  } catch {
+    // Column already exists or table has it
+  }
 }
 
 let initPromise: Promise<void> | null = null;

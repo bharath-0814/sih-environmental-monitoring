@@ -1,110 +1,127 @@
-# SIH Environmental Monitoring
+# Sentinel: Environmental Early Warning & Intelligence Platform
 
-This is the central application repository for our SIH26178 project, Environmental Monitoring. It acts as the Command Center dashboard and the backend API for hardware sensor nodes (ESP32).
+Sentinel is a real-time environmental monitoring, telemetry ingestion, and risk intelligence platform built for early hazard detection and water resource safety.
 
-## Tech Stack
-- **Framework**: Next.js (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: Turso (libSQL)
-- **Deployment**: Vercel (planned)
+---
 
-## Project Structure
-\`\`\`text
-src/
-├── app/
-│   ├── api/
-│   │   └── sensors/           # Hardware API integration endpoints
-│   ├── nodes/
-│   │   └── [nodeId]/          # Individual node details page
-│   ├── globals.css            # Global Tailwind styles
-│   ├── layout.tsx             # Root app layout
-│   └── page.tsx               # Main Command Center Dashboard
-├── lib/
-│   ├── db.ts                  # Turso database connection & init script
-│   └── mock-data.ts           # Sample data for UI prototyping
-├── services/
-│   └── api.ts                 # Service layer wrapping backend fetches
-└── types/
-    └── index.ts               # Shared TypeScript interfaces (SensorPayload, etc)
-\`\`\`
+## 1. Intelligence Architecture
 
-## Local Setup
+Sentinel implements a multi-layer server-side intelligence architecture that bridges raw sensor data and operational decision support:
 
-1. **Install Dependencies**
-   \`\`\`bash
-   npm install
-   \`\`\`
+```
+[ ESP32 Sensor Nodes ]
+          │
+          ▼  (POST /api/sensors)
+┌──────────────────────────────────────────────────────────┐
+│  Layer 1: Telemetry Ingestion & Normalization            │
+│  - Device auth via X-API-Key                             │
+│  - Node identity resolution (JSON / Header / Dev Default)│
+│  - Rejection of non-finite/malformed payloads            │
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+┌──────────────────────────────────────────────────────────┐
+│  Layer 2: Feature Engineering & Time-Series Analytics    │
+│  - Rate-of-change calculation (Δwater/min, Δtips/min)    │
+│  - Rolling averages & sample window aggregation          │
+│  - Reading age & data freshness tracking                 │
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+┌──────────────────────────────────────────────────────────┐
+│  Layer 3: Deterministic Data-Quality & Safety Engine     │
+│  - Non-finite & out-of-bounds detection                  │
+│  - Future timestamp & stale data validation              │
+│  - Frozen sensor detection (stuck ADC values)            │
+│  - Suspicious jump detection                             │
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+┌──────────────────────────────────────────────────────────┐
+│  Layer 4: Calibration & Geometry Translation             │
+│  - Mount height & reference distance translation         │
+│  - Explicit CALIBRATION_REQUIRED flagging if unconfigured│
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+┌──────────────────────────────────────────────────────────┐
+│  Layer 5: Configurable Hazard Rules                      │
+│  - Active hardware fault & surge rate rules              │
+│  - Explicitly disabled flood rules pending survey data   │
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+┌──────────────────────────────────────────────────────────┐
+│  Layer 6: Edge AI / ML Provider Abstraction              │
+│  - Edge Impulse integration contract                     │
+│  - Default MODEL_UNAVAILABLE state (no fabricated score) │
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+┌──────────────────────────────────────────────────────────┐
+│  Layer 7: Risk Fusion & Assessment Engine                │
+│  - Fuses data quality, rules, model inference, anomalies │
+│  - Explicit precedence (Safety rules > Model > Baseline) │
+└─────────────────────────┬────────────────────────────────┘
+                          ▼
+    [ Command Center Dashboard & GET /api/risk ]
+```
 
-2. **Environment Variables**
-   Copy `.env.example` to `.env.local` and configure your keys.
-   \`\`\`bash
-   cp .env.example .env.local
-   \`\`\`
-   Set \`NEXT_PUBLIC_USE_MOCK_DATA=true\` to use local mock data without a DB connection.
+---
 
-3. **Run Development Server**
-   \`\`\`bash
-   npm run dev
-   \`\`\`
-   Access the dashboard at http://localhost:3000
+## 2. RAW vs DERIVED vs CALIBRATED Data Tiers
 
-## Turso / Database Setup
+To maintain strict scientific honesty and avoid fabricated hazard alerts, Sentinel strictly categorizes all telemetry into three distinct tiers:
 
-We use Turso as our serverless SQLite edge database.
-To set up:
-1. Create a database on Turso: \`turso db create sih-sensors\`
-2. Get the DB URL: \`turso db show sih-sensors\`
-3. Create an Auth token: \`turso db tokens create sih-sensors\`
-4. Update your \`.env.local\` with \`TURSO_DATABASE_URL\` and \`TURSO_AUTH_TOKEN\`.
-5. The schema handles its own initialization on first request via \`src/lib/db.ts\` for local testing.
+| Data Tier | Description | Examples |
+| :--- | :--- | :--- |
+| **RAW** | Unmodified ADC values or direct transducer signals transmitted by the hardware. | `water_distance_cm` (53.78 cm), `rain_sensor_raw` (4095 ADC), `soil_moisture_raw` (4095 ADC), `rain_gauge_tips` (0) |
+| **DERIVED** | Mathematically valid time-series features calculated over historical sample windows without physical conversion assumptions. | `waterDistanceRatePerMin` (-2.0 cm/min), `rainTipRatePerMin` (3.0 tips/min), `rollingAverages`, `readingAgeSeconds` |
+| **CALIBRATED** | Physical engineering units derived only when site-specific structural geometry and calibration endpoints are provided. | `waterLevelCm` (mount height - distance), `rainfallMm` (tips × tip_volume), `soilMoisturePct` (%) |
 
-## Hardware Integration
+> [!IMPORTANT]
+> When physical calibration metadata is absent, `calibratedValues` return `null` and the system marks the node state as **`CALIBRATION_REQUIRED`**. Sentinel **never** assumes arbitrary mount heights or invents flood stages.
 
-The hardware team (ESP32) is responsible for reading analog/digital signals and posting JSON payloads.
+---
 
-**Local Testing URL for Hardware Team:**
-\`\`\`
-POST http://<YOUR_LOCAL_IP>:3000/api/sensors
-\`\`\`
+## 3. Risk Fusion Precedence
 
-### Expected Payload Structure
-\`\`\`json
-{
-  "waterDistance": 11.82,
-  "rainSensor": 4095,
-  "rainGaugeTips": 81,
-  "soilMoisture": 4095,
-  "temperature": 28.00,
-  "humidity": 72.00
-}
-\`\`\`
+The Risk Fusion Engine (`src/lib/risk-engine.ts`) aggregates multi-layer signals according to strict operational precedence:
 
-*Note: The hardware payload uses raw calibration values. The backend stores these directly without assumptions (e.g., \`waterDistance\` remains a distance, not converted to \`waterLevel\` yet).*
+1. **Deterministic Safety Rules**: Emergency or critical safety rules (e.g. physical sensor fault, impossible jump) override less severe ML predictions.
+2. **Edge AI Model Inference**: Active Edge Impulse model output is incorporated when available and validated.
+3. **Data Quality Failures**: Data staleness (>300s) or out-of-bounds readings force `SENSOR_DATA_STALE` or `INSUFFICIENT_DATA`.
+4. **Honest Baseline Fallback**: If no trained ML model and no physical calibration exists, `riskLevel` defaults to `UNKNOWN` or `NORMAL`, with `riskScore` and `confidence` strictly set to `null`.
 
-## API Endpoints
+---
 
-### 1. Ingest Sensor Reading
-- **Method:** \`POST\`
-- **Endpoint:** \`/api/sensors\`
-- **Description:** Receives hardware payload and stores it in Turso.
-- **Example:**
-  \`\`\`bash
-  curl -X POST http://localhost:3000/api/sensors \\
-    -H "Content-Type: application/json" \\
-    -d '{"waterDistance": 15.0, "rainSensor": 2000, "rainGaugeTips": 2, "soilMoisture": 1000, "temperature": 25.5, "humidity": 60}'
-  \`\`\`
+## 4. API Endpoints
 
-### 2. Get Latest Readings (All Nodes)
-- **Method:** \`GET\`
-- **Endpoint:** \`/api/sensors/latest\`
-- **Description:** Returns the most recent reading for each active node.
+### Ingestion & Telemetry
+- `POST /api/sensors`: Ingests hardware telemetry. Supports `node_id` in JSON or `X-Node-ID` header, and `X-API-Key` auth.
+- `GET /api/sensors/latest`: Returns latest readings for all active nodes.
+- `GET /api/sensors/[nodeId]`: Returns historical readings for a specific node (`?limit=20`).
 
-### 3. Get Node History
-- **Method:** \`GET\`
-- **Endpoint:** \`/api/sensors/[nodeId]?limit=10\`
-- **Description:** Returns metadata and recent readings for a specific node.
+### Alerts & Lifecycle
+- `GET /api/alerts`: Retrieves system alerts (`?resolved=false&severity=critical`).
+- `PATCH /api/alerts/[id]`: Updates alert status (`status: "ACKNOWLEDGED" | "RESOLVED" | "OPEN"`).
 
-## Mock Data
+### Risk & Intelligence
+- `GET /api/risk`: Returns comprehensive `RiskAssessment` objects for all deployed nodes.
+- `GET /api/risk/[nodeId]`: Returns detailed `RiskAssessment` including derived features, data quality report, calibration status, and model inference for a specific node.
 
-During initial development, the frontend leverages \`src/lib/mock-data.ts\` which contains realistic sensor deployments (active, warning, critical states) to visualize the dashboard without needing hardware plugged in. Toggle \`NEXT_PUBLIC_USE_MOCK_DATA=true\` in your environment to use it.
+---
+
+## 5. Running Tests
+
+Run the automated unit and intelligence test suite:
+```bash
+npx tsx test-intelligence.ts
+```
+
+Run TypeScript and production build checks:
+```bash
+npx tsc --noEmit
+npm run build
+```
+
+---
+
+## 6. Current Limitations & Future Edge Impulse Integration
+- **Edge AI Model**: The `EdgeImpulseProvider` interface is ready for WebAssembly/C++ inference integration once the model is trained by the hardware team. Currently reports `MODEL_UNAVAILABLE`.
+- **Flood Thresholds**: Physical inundation rules remain disabled until river cross-section profiles and sensor mount heights are calibrated per station.
+- **Authentication**: Shared symmetric API key mechanism (`SENSOR_INGESTION_API_KEY`). Per-device asymmetric key signing will be introduced in future revisions.

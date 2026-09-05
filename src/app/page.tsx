@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState } from 'react';
-import { getNodes, getLatestReadings, getAlerts } from '@/services/api';
-import { SensorNode, SensorReading, Alert } from '@/types';
-import { Activity, AlertTriangle, CloudRain, Droplets, MapPin, Thermometer, Wifi } from 'lucide-react';
+import { getNodes, getLatestReadings, getAlerts, getRiskAssessments, resolveAlert } from '@/services/api';
+import { SensorNode, SensorReading, Alert, RiskAssessment } from '@/types';
+import { Activity, AlertTriangle, CloudRain, Droplets, MapPin, Thermometer, Wifi, CheckCircle2, Cpu, ShieldAlert, Sliders } from 'lucide-react';
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
@@ -15,21 +15,23 @@ export default function CommandCenter() {
   const [nodes, setNodes] = useState<SensorNode[]>([]);
   const [readings, setReadings] = useState<Record<string, SensorReading>>({});
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [riskMap, setRiskMap] = useState<Record<string, RiskAssessment>>({});
   const [loading, setLoading] = useState(true);
   const [lastSync, setLastSync] = useState<Date>(new Date());
-
   const [error, setError] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
-      const [fetchedNodes, fetchedReadings, fetchedAlerts] = await Promise.all([
+      const [fetchedNodes, fetchedReadings, fetchedAlerts, fetchedRisk] = await Promise.all([
         getNodes(),
         getLatestReadings(),
-        getAlerts()
+        getAlerts(),
+        getRiskAssessments()
       ]);
       setNodes(fetchedNodes);
       setReadings(fetchedReadings);
       setAlerts(fetchedAlerts);
+      setRiskMap(fetchedRisk);
       setError(null);
       setLastSync(new Date());
     } catch (err) {
@@ -37,6 +39,15 @@ export default function CommandCenter() {
       setError("Live data unavailable");
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleResolveAlert = async (id: number) => {
+    try {
+      await resolveAlert(String(id));
+      await fetchData();
+    } catch (err) {
+      console.error('Failed to resolve alert:', err);
     }
   };
 
@@ -54,13 +65,21 @@ export default function CommandCenter() {
     const diff = Date.now() - new Date(n.last_seen).getTime();
     return diff < 300000; // Count as active if seen in last 5 mins
   }).length;
-  const criticalAlerts = alerts.filter(a => a.severity === 'critical').length;
 
   const getFreshness = (timestamp: string) => {
     const diff = Date.now() - new Date(timestamp).getTime();
     if (diff < 30000) return { label: 'LIVE', color: 'bg-green-100 text-green-700' };
     if (diff < 300000) return { label: 'STALE', color: 'bg-yellow-100 text-yellow-700' };
     return { label: 'OFFLINE', color: 'bg-gray-100 text-gray-700' };
+  };
+
+  const getRiskBadge = (risk?: RiskAssessment) => {
+    if (!risk) return { label: 'UNKNOWN', color: 'bg-gray-100 text-gray-700 border-gray-200' };
+    if (risk.riskLevel === 'CRITICAL') return { label: 'CRITICAL RISK', color: 'bg-red-100 text-red-700 border-red-300' };
+    if (risk.riskLevel === 'WARNING') return { label: 'WARNING RISK', color: 'bg-yellow-100 text-yellow-700 border-yellow-300' };
+    if (risk.riskLevel === 'WATCH') return { label: 'WATCH', color: 'bg-blue-100 text-blue-700 border-blue-300' };
+    if (risk.riskLevel === 'NORMAL') return { label: 'NORMAL', color: 'bg-green-100 text-green-700 border-green-300' };
+    return { label: 'RISK UNKNOWN', color: 'bg-gray-100 text-gray-700 border-gray-200' };
   };
 
   return (
@@ -70,9 +89,9 @@ export default function CommandCenter() {
           <div>
             <h1 className="text-2xl font-bold flex items-center gap-2">
               <Activity className="h-6 w-6" />
-              Environmental Command Center
+              Sentinel Command Center
             </h1>
-            <p className="text-blue-200 text-sm">Real-time Node Monitoring & Alerting</p>
+            <p className="text-blue-200 text-sm">Environmental Early Warning & Operational Intelligence</p>
           </div>
           <div className="flex items-center gap-6 text-sm">
             <div className="flex items-center gap-2">
@@ -100,7 +119,7 @@ export default function CommandCenter() {
           <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2 text-red-600">
               <AlertTriangle className="h-5 w-5" />
-              Active Alerts ({alerts.length})
+              Active System & Hazard Alerts ({alerts.length})
             </h2>
             {alerts.length === 0 ? (
               <p className="text-gray-500 text-sm">No active alerts.</p>
@@ -113,7 +132,16 @@ export default function CommandCenter() {
                       <span className="text-xs text-gray-500">{new Date(alert.created_at).toLocaleTimeString()}</span>
                     </div>
                     <p className="text-sm text-gray-700">{alert.message}</p>
-                    <p className="text-xs text-gray-500 mt-2">Node: {alert.node_id}</p>
+                    <div className="flex justify-between items-center mt-3 pt-2 border-t border-gray-200/60">
+                      <span className="text-xs text-gray-500">Node: {alert.node_id}</span>
+                      <button
+                        onClick={() => handleResolveAlert(alert.id)}
+                        className="text-xs bg-white hover:bg-gray-100 text-gray-700 px-2 py-1 rounded border border-gray-300 flex items-center gap-1 transition-colors"
+                      >
+                        <CheckCircle2 className="h-3 w-3 text-green-600" />
+                        Resolve
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -123,22 +151,48 @@ export default function CommandCenter() {
           <section className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
             <h2 className="text-lg font-semibold mb-4 flex items-center gap-2">
               <MapPin className="h-5 w-5 text-gray-500" />
-              Node Health Status
+              Node Health & Intelligence Status
             </h2>
             <div className="space-y-3">
               {nodes.map(node => {
                 const freshness = getFreshness(node.last_seen);
+                const risk = riskMap[node.node_id];
+                const riskBadge = getRiskBadge(risk);
+                
                 return (
                   <Link href={`/nodes/${node.node_id}`} key={node.id}>
-                    <div className="flex justify-between items-center p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-transparent hover:border-gray-200">
-                      <div>
-                        <h3 className="font-medium text-sm text-blue-600">{node.name}</h3>
-                        <p className="text-xs text-gray-500">{node.location_name}</p>
+                    <div className="p-3 hover:bg-gray-50 rounded-lg cursor-pointer transition-colors border border-gray-100 hover:border-gray-200 mb-2">
+                      <div className="flex justify-between items-start">
+                        <div>
+                          <h3 className="font-medium text-sm text-blue-600">{node.name}</h3>
+                          <p className="text-xs text-gray-500">{node.location_name} • ID: {node.node_id}</p>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className={`px-2 py-0.5 text-xs rounded-full font-medium ${freshness.color}`}>
+                            {freshness.label}
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-1 text-xs rounded-full ${freshness.color}`}>
-                          {freshness.label}
+
+                      {/* Intelligence & Calibration Indicators */}
+                      <div className="mt-2.5 pt-2 border-t border-gray-100 flex flex-wrap gap-1.5 text-xs">
+                        <span className={`px-2 py-0.5 rounded border font-medium ${riskBadge.color}`}>
+                          {riskBadge.label}
                         </span>
+
+                        {risk?.status === 'CALIBRATION_REQUIRED' && (
+                          <span className="px-2 py-0.5 rounded bg-amber-50 text-amber-800 border border-amber-200 flex items-center gap-1">
+                            <Sliders className="h-3 w-3" />
+                            CALIBRATION REQ.
+                          </span>
+                        )}
+
+                        {risk?.model.status === 'MODEL_UNAVAILABLE' && (
+                          <span className="px-2 py-0.5 rounded bg-gray-100 text-gray-600 border border-gray-200 flex items-center gap-1">
+                            <Cpu className="h-3 w-3 text-gray-400" />
+                            MODEL UNAVAILABLE
+                          </span>
+                        )}
                       </div>
                     </div>
                   </Link>

@@ -1,9 +1,9 @@
 "use client";
 
 import { useEffect, useState, use } from 'react';
-import { getNodeDetails } from '@/services/api';
-import { SensorNode, SensorReading } from '@/types';
-import { ArrowLeft, Activity, Droplets, Thermometer, CloudRain } from 'lucide-react';
+import { getNodeDetails, getNodeRiskAssessment } from '@/services/api';
+import { SensorNode, SensorReading, RiskAssessment } from '@/types';
+import { ArrowLeft, Activity, Droplets, Thermometer, CloudRain, Cpu, ShieldAlert, Sliders, CheckCircle2, AlertTriangle, HelpCircle } from 'lucide-react';
 import Link from 'next/link';
 
 import { CONFIG } from '@/lib/config';
@@ -13,14 +13,19 @@ export default function NodeDetails({ params }: { params: Promise<{ nodeId: stri
   const nodeId = resolvedParams.nodeId;
   const [node, setNode] = useState<SensorNode | null>(null);
   const [readings, setReadings] = useState<SensorReading[]>([]);
+  const [risk, setRisk] = useState<RiskAssessment | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function loadData() {
       try {
-        const data = await getNodeDetails(nodeId);
-        setNode(data.node);
-        setReadings(data.readings);
+        const [details, riskData] = await Promise.all([
+          getNodeDetails(nodeId),
+          getNodeRiskAssessment(nodeId).catch(() => null)
+        ]);
+        setNode(details.node);
+        setReadings(details.readings);
+        setRisk(riskData);
       } catch (error) {
         console.error("Failed to load node details", error);
       } finally {
@@ -139,6 +144,121 @@ export default function NodeDetails({ params }: { params: Promise<{ nodeId: stri
               <div>
                 <p className="text-gray-500 text-sm">Humidity</p>
                 <p className="text-xl font-bold">{latestReading.humidity_pct}%</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Risk & Intelligence Foundation Section */}
+        {risk && (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+            {/* Model & Assessment Intelligence */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                  <ShieldAlert className="h-5 w-5 text-blue-600" />
+                  Risk Intelligence Assessment
+                </h2>
+                <span className={`px-2.5 py-1 text-xs rounded-full font-semibold ${
+                  risk.riskLevel === 'CRITICAL' ? 'bg-red-100 text-red-800' :
+                  risk.riskLevel === 'WARNING' ? 'bg-yellow-100 text-yellow-800' :
+                  risk.riskLevel === 'WATCH' ? 'bg-blue-100 text-blue-800' :
+                  risk.riskLevel === 'NORMAL' ? 'bg-green-100 text-green-800' :
+                  'bg-gray-100 text-gray-700'
+                }`}>
+                  {risk.riskLevel}
+                </span>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4 text-sm mb-4">
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">Assessment State</span>
+                  <span className="font-semibold text-gray-800">{risk.status}</span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">Risk Score</span>
+                  <span className="font-semibold text-gray-800">
+                    {risk.riskScore !== null ? `${(risk.riskScore * 100).toFixed(0)}%` : 'N/A (No model loaded)'}
+                  </span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">Model Confidence</span>
+                  <span className="font-semibold text-gray-800">
+                    {risk.confidence !== null ? `${(risk.confidence * 100).toFixed(0)}%` : 'N/A'}
+                  </span>
+                </div>
+                <div className="p-3 bg-gray-50 rounded-lg border border-gray-100">
+                  <span className="text-xs text-gray-500 block mb-1">AI Model Engine</span>
+                  <span className="font-semibold text-gray-800 truncate block" title={risk.model.modelName}>
+                    {risk.model.modelName} ({risk.model.status})
+                  </span>
+                </div>
+              </div>
+
+              {/* Contributing Factors */}
+              <div>
+                <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">
+                  Contributing Factors & Quality Events
+                </h3>
+                {risk.contributors.length === 0 ? (
+                  <p className="text-xs text-gray-500 italic">No adverse risk contributors or anomalies detected.</p>
+                ) : (
+                  <ul className="space-y-1 text-xs">
+                    {risk.contributors.map((c, i) => (
+                      <li key={i} className="p-2 bg-amber-50 text-amber-900 rounded border border-amber-200">
+                        {c}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            </div>
+
+            {/* Feature Engineering & Calibration */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-lg font-semibold flex items-center gap-2 text-gray-900">
+                  <Sliders className="h-5 w-5 text-indigo-600" />
+                  Derived Features & Calibration
+                </h2>
+                <span className={`px-2.5 py-1 text-xs rounded-full font-medium ${
+                  risk.calibration.isCalibrated ? 'bg-green-100 text-green-800' : 'bg-amber-100 text-amber-800'
+                }`}>
+                  {risk.calibration.isCalibrated ? 'CALIBRATED' : 'CALIBRATION REQUIRED'}
+                </span>
+              </div>
+
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 text-xs">Water Distance Rate of Change</span>
+                  <span className="font-mono font-semibold text-xs">
+                    {risk.features.waterDistanceRatePerMin !== null ? `${risk.features.waterDistanceRatePerMin} cm/min` : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 text-xs">Rain Gauge Tip Rate</span>
+                  <span className="font-mono font-semibold text-xs">
+                    {risk.features.rainTipRatePerMin !== null ? `${risk.features.rainTipRatePerMin} tips/min` : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 text-xs">Rolling Avg. Water Distance</span>
+                  <span className="font-mono font-semibold text-xs">
+                    {risk.features.rollingAverages.waterDistanceCm !== null ? `${risk.features.rollingAverages.waterDistanceCm} cm` : 'N/A'}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 text-xs">Data Quality Flags</span>
+                  <span className="text-xs font-mono font-medium text-blue-700">
+                    {risk.dataQuality.flags.join(', ')}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2.5 bg-gray-50 rounded-lg">
+                  <span className="text-gray-600 text-xs">Calibrated Water Level</span>
+                  <span className="text-xs font-medium text-gray-500">
+                    {risk.calibratedValues.waterLevelCm !== null ? `${risk.calibratedValues.waterLevelCm} cm` : 'N/A (Uncalibrated Mount)'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

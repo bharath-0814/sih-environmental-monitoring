@@ -95,3 +95,182 @@ export const mockAlerts: Alert[] = [
     resolved: false
   }
 ];
+
+import { RiskAssessment } from '@/types';
+
+export const mockRiskAssessments: Record<string, RiskAssessment> = {
+  'node-01': {
+    nodeId: 'node-01',
+    timestamp: new Date().toISOString(),
+    riskLevel: 'UNKNOWN',
+    riskScore: null,
+    confidence: null,
+    status: 'CALIBRATION_REQUIRED',
+    contributors: ['Awaiting physical mounting height and reference survey'],
+    model: {
+      modelName: 'EdgeImpulse-FloodSentinel-v0',
+      modelVersion: 'unassigned',
+      riskLevel: 'UNKNOWN',
+      score: null,
+      confidence: null,
+      inferenceTimestamp: null,
+      featuresUsed: [],
+      status: 'MODEL_UNAVAILABLE'
+    },
+    dataQuality: {
+      isValid: true,
+      flags: ['VALID'],
+      details: [],
+      readingAgeSeconds: 12
+    },
+    calibration: {
+      nodeId: 'node-01',
+      sensorMountHeightCm: null,
+      referenceWaterDistanceCm: null,
+      rainGaugeTipVolumeMm: null,
+      soilDryAdc: null,
+      soilWetAdc: null,
+      isCalibrated: false
+    },
+    calibratedValues: {
+      waterLevelCm: null,
+      rainfallMm: null,
+      soilMoisturePct: null,
+      status: 'CALIBRATION_REQUIRED'
+    },
+    features: {
+      waterDistanceDelta: -0.2,
+      waterDistanceRatePerMin: -1.2,
+      rainTipDelta: 0,
+      rainTipRatePerMin: 0,
+      soilMoistureDelta: 0,
+      temperatureDelta: 0.1,
+      humidityDelta: -0.5,
+      rollingAverages: {
+        waterDistanceCm: 15.2,
+        rainSensorRaw: 4095,
+        soilMoistureRaw: 2048,
+        temperatureC: 28.5,
+        humidityPct: 65
+      },
+      readingAgeSeconds: 12,
+      samplesInWindow: 5
+    }
+  },
+  'node-02': {
+    nodeId: 'node-02',
+    timestamp: new Date(Date.now() - 3600000).toISOString(),
+    riskLevel: 'UNKNOWN',
+    riskScore: null,
+    confidence: null,
+    status: 'SENSOR_DATA_STALE',
+    contributors: ['Reading is stale (3600s old > 300s limit)'],
+    model: {
+      modelName: 'EdgeImpulse-FloodSentinel-v0',
+      modelVersion: 'unassigned',
+      riskLevel: 'UNKNOWN',
+      score: null,
+      confidence: null,
+      inferenceTimestamp: null,
+      featuresUsed: [],
+      status: 'MODEL_UNAVAILABLE'
+    },
+    dataQuality: {
+      isValid: true,
+      flags: ['STALE_READING'],
+      details: ['Reading is stale (3600s old)'],
+      readingAgeSeconds: 3600
+    },
+    calibration: {
+      nodeId: 'node-02',
+      sensorMountHeightCm: null,
+      referenceWaterDistanceCm: null,
+      rainGaugeTipVolumeMm: null,
+      soilDryAdc: null,
+      soilWetAdc: null,
+      isCalibrated: false
+    },
+    calibratedValues: {
+      waterLevelCm: null,
+      rainfallMm: null,
+      soilMoisturePct: null,
+      status: 'CALIBRATION_REQUIRED'
+    },
+    features: {
+      waterDistanceDelta: null,
+      waterDistanceRatePerMin: null,
+      rainTipDelta: null,
+      rainTipRatePerMin: null,
+      soilMoistureDelta: null,
+      temperatureDelta: null,
+      humidityDelta: null,
+      rollingAverages: {
+        waterDistanceCm: 120.0,
+        rainSensorRaw: 4095,
+        soilMoistureRaw: 800,
+        temperatureC: 32.1,
+        humidityPct: 40
+      },
+      readingAgeSeconds: 3600,
+      samplesInWindow: 1
+    }
+  },
+  'node-03': {
+    nodeId: 'node-03',
+    timestamp: new Date().toISOString(),
+    riskLevel: 'UNKNOWN',
+    riskScore: null,
+    confidence: null,
+    status: 'CALIBRATION_REQUIRED',
+    contributors: [],
+    model: {
+      modelName: 'EdgeImpulse-FloodSentinel-v0',
+      modelVersion: 'unassigned',
+      riskLevel: 'UNKNOWN',
+      score: null,
+      confidence: null,
+      inferenceTimestamp: null,
+      featuresUsed: [],
+      status: 'MODEL_UNAVAILABLE'
+    },
+    dataQuality: {
+      isValid: true,
+      flags: ['VALID'],
+      details: [],
+      readingAgeSeconds: 5
+    },
+    calibration: {
+      nodeId: 'node-03',
+      sensorMountHeightCm: null,
+      referenceWaterDistanceCm: null,
+      rainGaugeTipVolumeMm: null,
+      soilDryAdc: null,
+      soilWetAdc: null,
+      isCalibrated: false
+    },
+    calibratedValues: {
+      waterLevelCm: null,
+      rainfallMm: null,
+      soilMoisturePct: null,
+      status: 'CALIBRATION_REQUIRED'
+    },
+    features: {
+      waterDistanceDelta: -1.5,
+      waterDistanceRatePerMin: -6.0,
+      rainTipDelta: 10,
+      rainTipRatePerMin: 40,
+      soilMoistureDelta: 200,
+      temperatureDelta: -0.5,
+      humidityDelta: 3,
+      rollingAverages: {
+        waterDistanceCm: 2.5,
+        rainSensorRaw: 500,
+        soilMoistureRaw: 3800,
+        temperatureC: 24.0,
+        humidityPct: 95
+      },
+      readingAgeSeconds: 5,
+      samplesInWindow: 8
+    }
+  }
+};

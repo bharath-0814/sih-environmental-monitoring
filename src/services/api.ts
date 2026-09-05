@@ -1,5 +1,5 @@
-import { SensorNode, SensorReading, Alert } from '@/types';
-import { mockNodes, mockReadings, mockAlerts } from '@/lib/mock-data';
+import { SensorNode, SensorReading, Alert, RiskAssessment } from '@/types';
+import { mockNodes, mockReadings, mockAlerts, mockRiskAssessments } from '@/lib/mock-data';
 
 // Toggle this to use the real backend once Turso is set up
 const USE_MOCK_DATA = process.env.NEXT_PUBLIC_DATA_MODE === 'mock';
@@ -58,4 +58,30 @@ export async function resolveAlert(id: string): Promise<void> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ resolved: true })
   });
+}
+
+export async function getRiskAssessments(): Promise<Record<string, RiskAssessment>> {
+  if (USE_MOCK_DATA) {
+    return mockRiskAssessments;
+  }
+  const res = await fetch('/api/risk');
+  if (!res.ok) throw new Error('Failed to fetch risk assessments');
+  const json = await res.json();
+  const map: Record<string, RiskAssessment> = {};
+  (json.data || []).forEach((assessment: RiskAssessment) => {
+    map[assessment.nodeId] = assessment;
+  });
+  return map;
+}
+
+export async function getNodeRiskAssessment(nodeId: string): Promise<RiskAssessment> {
+  if (USE_MOCK_DATA) {
+    const assessment = mockRiskAssessments[nodeId];
+    if (assessment) return assessment;
+    throw new Error('Node risk assessment not found');
+  }
+  const res = await fetch(`/api/risk/${nodeId}`);
+  if (!res.ok) throw new Error('Failed to fetch node risk assessment');
+  const json = await res.json();
+  return json.assessment;
 }

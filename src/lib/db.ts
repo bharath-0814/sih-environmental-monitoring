@@ -3,6 +3,10 @@ import { createClient } from '@libsql/client';
 const url = process.env.TURSO_DATABASE_URL || 'file:./local.db';
 const authToken = process.env.TURSO_AUTH_TOKEN;
 
+if (process.env.NODE_ENV === 'production' && (!process.env.TURSO_DATABASE_URL || process.env.TURSO_DATABASE_URL.startsWith('file:'))) {
+  console.warn('[Sentinel DB] WARNING: TURSO_DATABASE_URL is not set for production. Persistent cloud storage requires Turso credentials.');
+}
+
 export const db = createClient({
   url,
   authToken,

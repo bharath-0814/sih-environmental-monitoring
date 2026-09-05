@@ -14,9 +14,15 @@ export async function POST(request: Request) {
     // 2. DEVICE AUTHENTICATION
     const expectedKey = process.env.SENSOR_INGESTION_API_KEY;
     if (expectedKey) {
-      const providedKey = request.headers.get('x-api-key');
+      const apiKeyHeader = request.headers.get('x-api-key');
+      const authHeader = request.headers.get('authorization');
+      const bearerToken = authHeader ? authHeader.replace(/^Bearer\s+/i, '').trim() : null;
+      const { searchParams } = new URL(request.url);
+      const queryApiKey = searchParams.get('api_key') || searchParams.get('apiKey');
+
+      const providedKey = apiKeyHeader || bearerToken || queryApiKey;
       if (providedKey !== expectedKey) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        return NextResponse.json({ error: 'Unauthorized: Invalid or missing API key' }, { status: 401 });
       }
     } else if (process.env.NODE_ENV === 'production') {
       console.warn('WARNING: SENSOR_INGESTION_API_KEY is not set in production!');
@@ -29,15 +35,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
     }
 
-    // 3. NODE IDENTITY RESOLUTION
-    let nodeId = body.node_id || request.headers.get('x-node-id');
-    if (!nodeId) {
-      if (process.env.NODE_ENV === 'development') {
-        nodeId = 'node-01'; // Fallback for local development testing
-      } else {
-        return NextResponse.json({ error: 'Missing Node ID' }, { status: 400 });
-      }
-    }
+    // 3. NODE IDENTITY RESOLUTION (Defaults to node-01 if omitted by hardware payload)
+    const nodeId = body.node_id || request.headers.get('x-node-id') || 'node-01';
 
     // Normalize payload to canonical format
     const canonical = {
